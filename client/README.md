@@ -16,7 +16,7 @@ cp .env.example .env
 # Add your Gemini API key to .env
 GEMINI_API_KEY=your_actual_key_here
 3. Run
-bash# Terminal 1 — start backend
+Terminal 1 — start backend
 cd server
 npm run dev        # uses nodemon for hot reload
 # Server runs on http://localhost:5000
@@ -24,7 +24,7 @@ npm run dev        # uses nodemon for hot reload
 # Terminal 2 — start frontend
 cd client
 npm start
-# App runs on http://localhost:3000
+# App runs on http://localhost:5173
 
 ✅ Features Implemented
 Part 1: Chat UI + Backend

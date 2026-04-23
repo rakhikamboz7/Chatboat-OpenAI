@@ -1,0 +1,79 @@
+.wrapper {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.wrapper.user {
+  flex-direction: row-reverse;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ─── Avatar ─────────────────────────────────────────────────────────────────── */
+.avatar {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  box-shadow: 0 0 16px var(--accent-glow);
+}
+
+/* ─── Bubble ──────────────────────────────────────────────────────────────────── */
+.bubble {
+  max-width: 72%;
+  padding: 12px 16px;
+  border-radius: var(--radius-lg);
+  position: relative;
+  line-height: 1.6;
+}
+
+.bot .bubble {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-bottom-left-radius: var(--radius-sm);
+  color: var(--text-primary);
+}
+
+.user .bubble {
+  background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+  border-bottom-right-radius: var(--radius-sm);
+  color: #fff;
+  box-shadow: 0 4px 20px var(--accent-glow);
+}
+
+/* ─── Content ────────────────────────────────────────────────────────────────── */
+.content {
+  font-size: 0.925rem;
+  font-weight: 400;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* ─── Timestamp ──────────────────────────────────────────────────────────────── */
+.time {
+  display: block;
+  font-size: 0.7rem;
+  margin-top: 6px;
+  opacity: 0.5;
+  text-align: right;
+}
+
+.bot .time {
+  text-align: left;
+}
