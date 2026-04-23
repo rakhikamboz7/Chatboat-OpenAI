@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef } from "react";
-const API_URL = import.meta.env.VITE_API_URL || "/chat";
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
 const CONTEXT_WINDOW = 5; // keep last 5 messages for context
-const MAX_LENGTH = 500;
+const MAX_LENGTH = 1500;
 
 /**
  * useChat — encapsulates all chat state and logic.
@@ -100,7 +100,7 @@ export function useChat() {
     }
   }, [input]);
 
-  // ─── Submit on Enter (not Shift+Enter) ────────────────────────────────────
+  // ─── Submit on Enter 
   const handleKeyDown = useCallback(
     (e) => {
       if (e.key === "Enter" && !e.shiftKey) {
@@ -119,7 +119,7 @@ export function useChat() {
         id: "welcome",
         role: "bot",
         content:
-          "Chat cleared! 🧹 Fresh start — what would you like to know about RapidekOps?",
+          "Chat cleared! Fresh start — what would you like to know about RapidekOps?",
         timestamp: new Date(),
       },
     ]);

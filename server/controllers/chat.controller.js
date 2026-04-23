@@ -3,14 +3,8 @@ import ApiError from "../utils/ApiError.js";
 import { validateMessage, validateHistory } from "../utils/validate.js";
 import { getChatResponse } from "../services/gemini.service.js";
 
-export const chatHandler = (model, SYSTEM_INSTRUCTIONS, isRateLimited) =>
+export const chatHandler = (model, SYSTEM_INSTRUCTIONS) =>
   asyncHandler(async (req, res) => {
-    const clientIP =
-      req.headers["x-forwarded-for"] || req.socket.remoteAddress;
-
-    if (isRateLimited(clientIP)) {
-      throw new ApiError(429, "Too many requests");
-    }
 
     const validation = validateMessage(req.body.message);
 
