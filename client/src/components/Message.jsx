@@ -1,9 +1,6 @@
 import React from "react";
 import styles from "./Message.module.css";
 
-/**
- * Message — renders a single chat bubble for user or bot.
- */
 const Message = React.memo(function Message({ message }) {
   const { role, content, timestamp } = message;
   const isBot = role === "bot";

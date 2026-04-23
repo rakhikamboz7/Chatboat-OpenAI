@@ -61,7 +61,7 @@ export function useChat() {
     const contextHistory = historyRef.current.slice(-CONTEXT_WINDOW);
 
     try {
-      const res = await fetch(`${API_URL}/chat`, {
+      const res = await fetch(`${API_URL}/api/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
