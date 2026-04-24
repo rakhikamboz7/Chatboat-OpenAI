@@ -20,7 +20,6 @@ console.log("Keys loaded:", {
   modelsCount: models.length,
 });
 
-// ✅ FIXED: Strict Gemini-compatible history
 function sanitizeHistory(rawHistory = []) {
   const history = [];
 
@@ -30,7 +29,6 @@ function sanitizeHistory(rawHistory = []) {
     const role = msg.role === "bot" ? "model" : "user";
     const last = history[history.length - 1];
 
-    // Prevent consecutive same roles
     if (last && last.role === role) continue;
 
     history.push({
@@ -39,12 +37,10 @@ function sanitizeHistory(rawHistory = []) {
     });
   }
 
-  // Must start with user
   if (history.length && history[0].role !== "user") {
     history.shift();
   }
 
-  // Must end with model
   if (history.length && history[history.length - 1].role !== "model") {
     history.pop();
   }
@@ -52,7 +48,6 @@ function sanitizeHistory(rawHistory = []) {
   return history;
 }
 
-// Clean response
 function cleanResponse(text = "") {
   return text
     .replace(/#{1,6}\s+/g, "")
@@ -64,6 +59,20 @@ function cleanResponse(text = "") {
     .trim();
 }
 
+// ✅ FIX: Reliably extract status code from Google SDK errors
+function getErrorStatus(err) {
+  return (
+    err?.status ||
+    err?.statusCode ||
+    err?.response?.status ||
+    err?.error?.code ||
+    (err?.message?.includes("429") ? 429 : null) ||
+    (err?.message?.includes("quota") ? 429 : null) ||
+    (err?.message?.includes("403") ? 403 : null) ||
+    500
+  );
+}
+
 export async function getChatResponse(
   message,
   history = [],
@@ -71,24 +80,23 @@ export async function getChatResponse(
   keyIndex = 0
 ) {
   console.log("Sending to Gemini:", {
-    model: MODEL_PRIMARY,
+    model: keyIndex === 0 ? MODEL_PRIMARY : MODEL_FALLBACK,
     message,
     historyLength: history.length,
+    keyIndex,
   });
 
-  Validation
   if (!message || typeof message !== "string") {
     throw new ApiError(400, "Invalid message format");
   }
 
   if (keyIndex >= models.length) {
-    throw new ApiError(503, "AI service is unavailable.");
+    throw new ApiError(503, "All AI keys are exhausted. Please try again later.");
   }
 
   try {
     const chat = models[keyIndex].startChat({
       history: sanitizeHistory(history),
-
       systemInstruction: systemInstructions
         ? {
             role: "system",
@@ -99,17 +107,24 @@ export async function getChatResponse(
 
     const result = await chat.sendMessage(message);
     return cleanResponse(result.response.text());
+
   } catch (err) {
-    // Retry with next key if quota error
-    if ((err?.status === 429 || err?.status === 403) && keyIndex + 1 < models.length) {
+    const status = getErrorStatus(err);
+
+    console.warn(`Gemini key[${keyIndex}] failed with status ${status}:`, err?.message);
+
+    // ✅ Retry with next key on rate limit or auth error
+    if ((status === 429 || status === 403) && keyIndex + 1 < models.length) {
+      console.log(`Switching to key[${keyIndex + 1}]...`);
       return getChatResponse(message, history, systemInstructions, keyIndex + 1);
     }
 
-    // Retry once without history if bad request
-    if (err?.status === 400 && history.length > 0) {
+    // ✅ Retry once without history on bad request
+    if (status === 400 && history.length > 0) {
+      console.log("Retrying without history...");
       return getChatResponse(message, [], systemInstructions, keyIndex);
     }
 
-    throw new ApiError(err?.status || 500, mapExternalError(err));
+    throw new ApiError(status, mapExternalError(err));
   }
 }
