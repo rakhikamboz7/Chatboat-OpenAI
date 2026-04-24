@@ -8,14 +8,6 @@ import SYSTEM_INSTRUCTIONS from "./config/systemPrompt.js";
 
 configDotenv();
 
-if (!process.env.GEMINI_API_KEY_1 && !process.env.GEMINI_API_KEY_2) {
-  throw new Error("At least one Gemini API key (GEMINI_API_KEY_1 or GEMINI_API_KEY_2) is required.");
-}
-
-if (!process.env.GEMINI_API_KEY_1) {
-  console.warn("Warning: GEMINI_API_KEY_1 not set — running on secondary key only, no fallback available.");
-}
-
 const app = express();
 const PORT = process.env.PORT || 5000;
 

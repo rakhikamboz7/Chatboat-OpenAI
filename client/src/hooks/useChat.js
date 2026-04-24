@@ -7,48 +7,52 @@ const STORAGE_KEY = "rapidbot_history";
 
 const WELCOME_MESSAGE = {
   id: "welcome",
+  role: "user", 
+  content: "Hello",
+  hidden: true, // flag to hide from UI
+  timestamp: new Date().toISOString(),
+};
+
+const WELCOME_DISPLAY = {
+  id: "welcome-display",
   role: "bot",
-  content:
-    "Hey there! I'm RapidBot, your AI assistant. How can I help you today?",
+  content: "Hey there! I'm RapidBot, your AI assistant. How can I help you today?",
   timestamp: new Date().toISOString(),
 };
 
 function loadPersistedMessages() {
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
-    if (!saved) return [WELCOME_MESSAGE];
+    if (!saved) return [WELCOME_DISPLAY];
     const parsed = JSON.parse(saved);
-    return Array.isArray(parsed) && parsed.length > 0 ? parsed : [WELCOME_MESSAGE];
+    return Array.isArray(parsed) && parsed.length > 0 ? parsed : [WELCOME_DISPLAY];
   } catch {
-    return [WELCOME_MESSAGE];
+    return [WELCOME_DISPLAY];
   }
 }
 
 
 function buildContextHistory(messages) {
-  const conversational = messages.filter((m) => m.id !== "welcome");
+  const conversational = messages.filter(
+    (m) => m.id !== "welcome" && m.id !== "welcome-display" && !m.hidden
+  );
 
   const cleaned = [];
 
   for (const msg of conversational) {
     if (!msg.content?.trim()) continue;
 
+    const role = msg.role === "bot" ? "assistant" : "user";
     const last = cleaned[cleaned.length - 1];
 
-    // prevent consecutive same roles
-    if (last && last.role === msg.role) continue;
+    if (last && last.role === role) continue;
 
-    cleaned.push({
-      role: msg.role,
-      content: msg.content,
-    });
+    cleaned.push({ role, content: msg.content });
   }
 
-  // Must end with bot
   if (cleaned.length && cleaned[cleaned.length - 1].role === "user") {
     cleaned.pop();
   }
-
   return cleaned.slice(-(CONTEXT_WINDOW * 2));
 }
 
@@ -84,8 +88,7 @@ export function useChat() {
       return;
     }
 
-    const currentMessages = messagesRef.current;
-    const contextHistory = buildContextHistory(currentMessages);
+    const contextHistory = buildContextHistory(messagesRef.current);
 
     const userMsg = {
       id: `u-${Date.now()}`,
@@ -109,13 +112,15 @@ export function useChat() {
         signal: abortRef.current.signal,
         body: JSON.stringify({
           message: trimmed,
-          history: contextHistory,
+          history: contextHistory, 
         }),
       });
 
       const data = await res.json();
 
-      if (!res.ok) throw new Error(data.error || "Something went wrong");
+      if (!res.ok) {
+        throw new Error(data.error || data.message || "Something went wrong");
+      }
 
       const botMsg = {
         id: `b-${Date.now()}`,
@@ -125,10 +130,19 @@ export function useChat() {
       };
 
       setMessages((prev) => [...prev, botMsg]);
+
     } catch (err) {
       if (err.name === "AbortError") return;
 
-      setError(err.message || "Failed to reach server.");
+      
+      const message =
+        err.message?.includes("429")
+          ? "Too many requests. Please wait a moment."
+          : err.message?.includes("503")
+          ? "AI service unavailable. Try again shortly."
+          : err.message || "Failed to reach server.";
+
+      setError(message);
       setMessages((prev) => prev.filter((m) => m.id !== userMsg.id));
     } finally {
       setIsTyping(false);
@@ -148,10 +162,7 @@ export function useChat() {
   const clearChat = useCallback(() => {
     abortRef.current?.abort();
     localStorage.removeItem(STORAGE_KEY);
-
-    setMessages([
-      { ...WELCOME_MESSAGE, timestamp: new Date().toISOString() },
-    ]);
+    setMessages([{ ...WELCOME_DISPLAY, timestamp: new Date().toISOString() }]);
     setError(null);
     setIsTyping(false);
   }, []);

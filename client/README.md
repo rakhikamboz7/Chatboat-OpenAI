@@ -1,95 +1,136 @@
-A production-ready AI-powered chatbot built with React + Node.js + Gemini AI, matching Rapidekops' brand aesthetic.
+# RapidekOps AI Chatbot
 
-Quick Start
+An AI-powered chatbot built for RapidekOps — a digital agency specializing in SEO and e-commerce web development. Built with React (Vite), Node.js, Express, and the Groq API.
 
-1. Clone & Install
-Install server dependencies
+---
+
+## Quick Start
+
+### 1. Clone & Install
+
+```bash
+# Server dependencies
 cd server
 npm install
 
-# Install client dependencies
+# Client dependencies
 cd ../client
 npm install
-2. Configure Environment
-bash# In /server directory
-cp .env.example .env
-# Add your Gemini API key to .env
-GEMINI_API_KEY=your_actual_key_here
-3. Run
-Terminal 1 — start backend
+```
+
+### 2. Configure Environment
+
+```bash
 cd server
-npm run dev        # uses nodemon for hot reload
-# Server runs on http://localhost:5000
+cp .env.example .env
+```
 
-# Terminal 2 — start frontend
+Open `server/.env` and fill in your keys:
+
+```env
+PORT=5000
+CLIENT_URL=http://localhost:5173
+
+# Primary Groq key — required
+GROQ_API_KEY_1=your_primary_key_here
+
+# Secondary Groq key — optional fallback if key 1 hits quota
+GROQ_API_KEY_2=your_secondary_key_here
+```
+
+### 3. Run
+
+```bash
+# Terminal 1 — backend (http://localhost:5000)
+cd server
+npm run dev
+
+# Terminal 2 — frontend (http://localhost:5173)
 cd client
-npm start
-# App runs on http://localhost:5173
+npm run dev
+```
 
-✅ Features Implemented
-Part 1: Chat UI + Backend
+---
 
- Clean chat interface with user/bot message distinction
- Auto-scroll to latest message
- /chat POST endpoint accepting user messages
- AI-generated responses returned as JSON
+## Features
 
-Part 2: AI Integration
+### Part 1 — Chat UI + Backend
+- Chat interface with visually distinct user and bot message bubbles
+- Auto-scroll to the latest message on every new reply
+- `POST /chat` endpoint that accepts a user message and returns an AI response
 
- Gemini 1.5 Flash model via @google/generative-ai SDK
- Graceful API error handling using global error handler
- Environment variable for API key
+### Part 2 — AI Integration
+- Groq API integration via the Groq SDK
+- Dual API key support — automatically retries with a secondary key on quota or rate limit errors
+- Centralized error handling with a global error middleware and mapped error messages
 
-Part 3: Context Handling
+### Part 3 — Context Handling
+- Last 5 message exchanges maintained per conversation
+- History enforces Groq's alternating user/model turn requirement
+- Context snapshot taken before state updates to avoid stale closure issues
 
- Last 5 messages maintained per session
- Session ID persisted via sessionStorage
- Stale session cleanup (30-minute TTL)
- History formatted correctly for Gemini multi-turn chat
+### Part 4 — Enhancements (all 4 implemented)
+- **Typing indicator** — animated 3-dot bounce while waiting for a response
+- **Rate limiting** — 20 requests per minute via `express-rate-limit`
+- **Input validation** — empty message check and 1500 character max, enforced on both client and server
+- **Chatbot personality** — friendly and professional tone, scoped to RapidekOps services (SEO, e-commerce, digital marketing)
 
-Part 4: Enhancements (All 4 implemented)
+### Bonus
+- Chat history persisted to `localStorage` — survives page refresh
+- Clear chat button — wipes history and resets to welcome message
+- Quick-prompt suggestion chips for common questions
+- Responsive layout — works on mobile and desktop
+- Accessible — ARIA roles, live regions, keyboard navigation (Enter to send, Shift+Enter for new line)
 
- Typing indicator — animated 3-dot bounce
- Rate limiting — 20 requests/minute per IP via express-rate-limit
- Input validation — empty check + 500 char max (client + server)
- Chatbot personality — friendly & professional, Rapidekops-branded system prompt
+---
 
-Bonus Features
+## API Reference
 
- Quick-prompt chips — one-click common questions
- Clear chat — resets session and history
- Inline bold text parser — renders **text** as <strong>
- Character counter with warning at 85% capacity
- Accessible — ARIA roles, live regions, keyboard nav
- Responsive design — mobile-optimized layout
+### `POST /chat`
 
-Design Decisions
-The UI matches Rapidekops' website aesthetic:
-
-Grid background — subtle dot/line grid matching their brand
-Syne + DM Sans — editorial display font paired with clean body font
-Black & white — strict monochrome palette matching their minimal brand
-Arc decorations — geometric accents replicating the website's style
-
-
-🔒 API Design
-POST /chat
-Content-Type: application/json
-
+```json
+// Request
 {
-  "message": "Tell me about your SEO services",
-  "sessionId": "uuid-string"
+  "message": "How do you approach SEO for e-commerce sites?",
+  "history": [
+    { "role": "user", "content": "Hi" },
+    { "role": "bot", "content": "Hello! How can I help?" }
+  ]
 }
 
-→ 200 OK
+// 200 OK
 {
-  "reply": "...",
-  "sessionId": "uuid-string"
+  "reply": "For e-commerce SEO, we focus on..."
 }
 
-→ 400 Bad Request  (validation error)
-→ 429 Too Many Requests (rate limit)
-→ 500 Internal Server Error
-GET /health
-→ { "status": "ok", "service": "Rapidekops Chat API" }
+// 400 Bad Request — validation failed
+{ "error": "Message cannot be empty." }
 
+// 429 Too Many Requests — rate limit hit
+{ "error": "Too many requests — please wait a moment and try again." }
+
+// 503 Service Unavailable — all API keys exhausted
+{ "error": "AI service is temporarily unavailable. Please try again shortly." }
+```
+
+### `GET /health`
+
+```json
+{ "status": "ok" }
+```
+
+---
+
+## Design Decisions
+
+**Why `localStorage` over `sessionStorage`?**
+Chat history persists across browser sessions without needing authentication — better UX for returning users, and clearing it is a single explicit action via the Clear button.
+
+<!-- **Why dual API keys?**
+Free tier Groq keys have per-minute and daily rate limits. If the primary key hits quota, the service automatically retries with the secondary key without the user seeing an error. -->
+
+**Why no IP-based rate limiting?**
+Without authentication, IP is an unreliable identifier — shared networks and proxies would unfairly block legitimate users. `express-rate-limit` is kept for general server protection with `validate: { ip: false }`.
+
+**Why strip markdown from responses?**
+The system prompt instructs the model to respond in plain text, but AI models occasionally output markdown anyway. The `cleanResponse` function in the service layer strips it server-side so the frontend stays simple with no markdown parser needed.
