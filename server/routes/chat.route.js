@@ -3,7 +3,7 @@ import { chatHandler } from "../controllers/chat.controller.js";
 
 const router = express.Router();
 
-export default (model, SYSTEM_INSTRUCTIONS, isRateLimited) => {
-  router.post("/chat", chatHandler(model, SYSTEM_INSTRUCTIONS, isRateLimited));
+export default (SYSTEM_INSTRUCTIONS, isRateLimited) => {
+  router.post("/chat", isRateLimited, chatHandler(SYSTEM_INSTRUCTIONS));
   return router;
 };

@@ -34,7 +34,7 @@
   box-shadow: 0 0 16px var(--accent-glow);
 }
 
-/* ─── Bubble ──────────────────────────────────────────────────────────────────── */
+/* ─── Bubble ──── */
 .bubble {
   max-width: 72%;
   padding: 12px 16px;
@@ -57,7 +57,7 @@
   box-shadow: 0 4px 20px var(--accent-glow);
 }
 
-/* ─── Content ────────────────────────────────────────────────────────────────── */
+/* ─── Content ─────*/
 .content {
   font-size: 0.925rem;
   font-weight: 400;
@@ -65,7 +65,7 @@
   word-break: break-word;
 }
 
-/* ─── Timestamp ──────────────────────────────────────────────────────────────── */
+/* ─── Timestamp ── */
 .time {
   display: block;
   font-size: 0.7rem;

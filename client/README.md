@@ -37,7 +37,7 @@ Part 1: Chat UI + Backend
 Part 2: AI Integration
 
  Gemini 1.5 Flash model via @google/generative-ai SDK
- Graceful API error handling (429, 400, 500)
+ Graceful API error handling using global error handler
  Environment variable for API key
 
 Part 3: Context Handling
