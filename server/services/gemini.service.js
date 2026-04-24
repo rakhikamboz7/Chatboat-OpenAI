@@ -1,33 +1,59 @@
+import "dotenv/config";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { mapExternalError } from "../utils/errorMapper.js";
 import ApiError from "../utils/ApiError.js";
 
+const MODEL_PRIMARY = "gemini-2.0-flash-lite";
+const MODEL_FALLBACK = "gemini-2.0-flash-lite";
+
 const models = [process.env.GEMINI_API_KEY_1, process.env.GEMINI_API_KEY_2]
   .filter(Boolean)
-  .map((key) =>
-    new GoogleGenerativeAI(key).getGenerativeModel({ model: "gemini-2.5-flash" })
+  .map((key, index) =>
+    new GoogleGenerativeAI(key).getGenerativeModel({
+      model: index === 0 ? MODEL_PRIMARY : MODEL_FALLBACK,
+    })
   );
 
-// Gemini requires strictly alternating user/model turns.
-// Consecutive same-role messages cause a 400 — this was the root cause of the 3-message bug.
-function sanitizeHistory(rawHistory) {
+console.log("Keys loaded:", {
+  key1: !!process.env.GEMINI_API_KEY_1,
+  key2: !!process.env.GEMINI_API_KEY_2,
+  modelsCount: models.length,
+});
+
+// ✅ FIXED: Strict Gemini-compatible history
+function sanitizeHistory(rawHistory = []) {
   const history = [];
 
   for (const msg of rawHistory) {
+    if (!msg?.content?.trim()) continue;
+
     const role = msg.role === "bot" ? "model" : "user";
     const last = history[history.length - 1];
+
+    // Prevent consecutive same roles
     if (last && last.role === role) continue;
-    history.push({ role, parts: [{ text: msg.content }] });
+
+    history.push({
+      role,
+      parts: [{ text: msg.content }],
+    });
   }
 
-  if (history.length > 0 && history[0].role !== "user") history.shift();
-  if (history.length > 0 && history[history.length - 1].role === "user") history.pop();
+  // Must start with user
+  if (history.length && history[0].role !== "user") {
+    history.shift();
+  }
+
+  // Must end with model
+  if (history.length && history[history.length - 1].role !== "model") {
+    history.pop();
+  }
 
   return history;
 }
 
-// Strip all markdown Gemini might output — responses should be plain conversational text
-function cleanResponse(text) {
+// Clean response
+function cleanResponse(text = "") {
   return text
     .replace(/#{1,6}\s+/g, "")
     .replace(/\*\*(.*?)\*\*/g, "$1")
@@ -38,30 +64,49 @@ function cleanResponse(text) {
     .trim();
 }
 
-export async function getChatResponse(message, history, systemInstructions, keyIndex = 0) {
+export async function getChatResponse(
+  message,
+  history = [],
+  systemInstructions = "",
+  keyIndex = 0
+) {
+  console.log("Sending to Gemini:", {
+    model: MODEL_PRIMARY,
+    message,
+    historyLength: history.length,
+  });
+
+  Validation
+  if (!message || typeof message !== "string") {
+    throw new ApiError(400, "Invalid message format");
+  }
+
   if (keyIndex >= models.length) {
-    throw new ApiError(503, "AI service is temporarily unavailable. Please try again shortly.");
+    throw new ApiError(503, "AI service is unavailable.");
   }
 
   try {
     const chat = models[keyIndex].startChat({
       history: sanitizeHistory(history),
-      systemInstruction: systemInstructions,
+
+      systemInstruction: systemInstructions
+        ? {
+            role: "system",
+            parts: [{ text: systemInstructions }],
+          }
+        : undefined,
     });
 
     const result = await chat.sendMessage(message);
     return cleanResponse(result.response.text());
   } catch (err) {
+    // Retry with next key if quota error
     if ((err?.status === 429 || err?.status === 403) && keyIndex + 1 < models.length) {
-      console.warn(`Key ${keyIndex + 1} hit quota, retrying with key ${keyIndex + 2}...`);
       return getChatResponse(message, history, systemInstructions, keyIndex + 1);
     }
 
-    // If history caused the 400, retry once with clean context.
-    // If the message itself is the problem, the retry will also 400
-    // but history will be empty so it won't loop — falls through to mapExternalError.
+    // Retry once without history if bad request
     if (err?.status === 400 && history.length > 0) {
-      console.warn("History caused 400, retrying with cleared context...");
       return getChatResponse(message, [], systemInstructions, keyIndex);
     }
 
